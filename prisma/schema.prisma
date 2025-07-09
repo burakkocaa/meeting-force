@@ -25,11 +25,11 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastLoginAt   DateTime?
-  
+
   // İlişkiler
   role          Role      @relation(fields: [roleId], references: [id])
-  // meetings      Meet[]    @relation("MeetingOrganizer") // Sonra ekleyeceğiz
-  
+  meetings      Meet[]    @relation("MeetingOrganizer")
+
   @@map("users")
 }
 
@@ -42,9 +42,39 @@ model Role {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // İlişkiler
   users       User[]
-  
+
   @@map("roles")
+}
+
+model MeetingRoom {
+  id        String   @id @default(cuid())
+  name      String
+  location  String
+  capacity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meetings  Meet[]
+
+  @@map("meeting_rooms")
+}
+
+model Meet {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  date        DateTime
+  roomId      String
+  organizerId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // İlişkiler
+  room        MeetingRoom @relation(fields: [roomId], references: [id])
+  organizer   User        @relation("MeetingOrganizer", fields: [organizerId], references: [id])
+
+  @@map("meets")
 }
