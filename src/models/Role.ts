@@ -1,13 +1,13 @@
-import { User } from '@prisma/client';
-
-// Permission yapısı
-export interface Permission {
-  module: string;
-  actions: string[];
+// Basit enum yapısı
+export enum Role {
+  ADMIN = 'admin',
+  MANAGER = 'manager',
+  USER = 'user',
+  GUEST = 'guest'
 }
 
-// Yaygın permission tipleri
-export interface UserPermissions {
+// Permission yapısı
+export interface Permissions {
   users: {
     create: boolean;
     read: boolean;
@@ -37,110 +37,30 @@ export interface UserPermissions {
   };
 }
 
-// Temel Role tipi
-export interface Role {
-  id: string;
-  name: string;
-  displayName: string;
-  description?: string | null;
-  permissions: any; // JSON formatında permissions
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// İlişkiler dahil Role tipi
-export interface RoleWithRelations extends Role {
-  users: User[];
-}
-
-// Role oluşturma için gerekli alanlar
-export interface CreateRoleData {
-  name: string;
-  displayName: string;
-  description?: string;
-  permissions: UserPermissions | any;
-  isActive?: boolean;
-}
-
-// Role güncelleme için opsiyonel alanlar
-export interface UpdateRoleData {
-  name?: string;
-  displayName?: string;
-  description?: string | null;
-  permissions?: UserPermissions | any;
-  isActive?: boolean;
-}
-
-// Role özeti (liste görünümü için)
-export interface RoleSummary {
-  id: string;
-  name: string;
-  displayName: string;
-  description?: string | null;
-  isActive: boolean;
-  userCount: number;
-  createdAt: Date;
-}
-
-// Role detayı (tek rol görünümü için)
-export interface RoleDetail {
-  id: string;
-  name: string;
-  displayName: string;
-  description?: string | null;
-  permissions: UserPermissions | any;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  users: {
-    id: string;
-    email: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    isActive: boolean;
-  }[];
-}
-
-// Permission kontrol fonksiyonu için tip
-export interface PermissionCheck {
-  module: string;
-  action: string;
-}
-
-// Varsayılan roller
-export const DEFAULT_ROLES = {
-  ADMIN: 'admin',
-  MANAGER: 'manager',
-  USER: 'user',
-  GUEST: 'guest',
-} as const;
-
-// Varsayılan permission setleri
-export const DEFAULT_PERMISSIONS: Record<string, UserPermissions> = {
-  admin: {
+// Sabit role tanımları
+export const ROLE_PERMISSIONS: Record<Role, Permissions> = {
+  [Role.ADMIN]: {
     users: { create: true, read: true, update: true, delete: true },
     meetings: { create: true, read: true, update: true, delete: true, manage: true },
     roles: { create: true, read: true, update: true, delete: true },
     reports: { read: true, export: true },
     settings: { read: true, update: true },
   },
-  manager: {
+  [Role.MANAGER]: {
     users: { create: true, read: true, update: true, delete: false },
     meetings: { create: true, read: true, update: true, delete: true, manage: true },
     roles: { create: false, read: true, update: false, delete: false },
     reports: { read: true, export: true },
     settings: { read: true, update: false },
   },
-  user: {
+  [Role.USER]: {
     users: { create: false, read: true, update: false, delete: false },
     meetings: { create: true, read: true, update: false, delete: false, manage: false },
     roles: { create: false, read: false, update: false, delete: false },
     reports: { read: false, export: false },
     settings: { read: false, update: false },
   },
-  guest: {
+  [Role.GUEST]: {
     users: { create: false, read: false, update: false, delete: false },
     meetings: { create: false, read: true, update: false, delete: false, manage: false },
     roles: { create: false, read: false, update: false, delete: false },
@@ -149,125 +69,71 @@ export const DEFAULT_PERMISSIONS: Record<string, UserPermissions> = {
   },
 };
 
-// Prisma select options
-export const roleSelectOptions = {
-  basic: {
-    id: true,
-    name: true,
-    displayName: true,
-    description: true,
-    isActive: true,
-    createdAt: true,
-  },
-  withUserCount: {
-    id: true,
-    name: true,
-    displayName: true,
-    description: true,
-    isActive: true,
-    createdAt: true,
-    _count: {
-      users: true,
-    },
-  },
-  withUsers: {
-    id: true,
-    name: true,
-    displayName: true,
-    description: true,
-    permissions: true,
-    isActive: true,
-    createdAt: true,
-    updatedAt: true,
-    users: {
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-        isActive: true,
-      },
-    },
-  },
-  full: {
-    id: true,
-    name: true,
-    displayName: true,
-    description: true,
-    permissions: true,
-    isActive: true,
-    createdAt: true,
-    updatedAt: true,
-  },
-} as const;
-
-// Permission yardımcı fonksiyonları
-export class PermissionHelper {
-  // Permission kontrol
-  static hasPermission(
-    userPermissions: UserPermissions | any,
-    module: string,
-    action: string
-  ): boolean {
-    if (!userPermissions || !userPermissions[module]) {
-      return false;
-    }
-    
-    return userPermissions[module][action] === true;
-  }
-
-  // Tüm permission'ları kontrol et
-  static hasAnyPermission(
-    userPermissions: UserPermissions | any,
-    checks: PermissionCheck[]
-  ): boolean {
-    return checks.some(check => 
-      this.hasPermission(userPermissions, check.module, check.action)
-    );
-  }
-
-  // Tüm permission'ları kontrol et
-  static hasAllPermissions(
-    userPermissions: UserPermissions | any,
-    checks: PermissionCheck[]
-  ): boolean {
-    return checks.every(check => 
-      this.hasPermission(userPermissions, check.module, check.action)
-    );
-  }
-
- // Permission'ları birleştir
-static mergePermissions(
-  permissions1: UserPermissions,
-  permissions2: UserPermissions
-): UserPermissions {
-  const merged = {} as UserPermissions;
-  
-  // Her modül için ayrı ayrı handle et
-  const modules = Object.keys(permissions1) as Array<keyof UserPermissions>;
-  
-  modules.forEach(module => {
-    const perm1 = permissions1[module];
-    const perm2 = permissions2[module];
-    
-    // Object.assign kullanarak güvenli birleştir
-    merged[module] = Object.assign({}, perm1, perm2) as any;
-  });
-  
-  return merged;
+// Basit permission kontrol fonksiyonu
+export function hasPermission(
+  userRole: Role,
+  module: keyof Permissions,
+  action: string
+): boolean {
+  const permissions = ROLE_PERMISSIONS[userRole];
+  const modulePermissions = permissions[module] as any;
+  return modulePermissions?.[action] === true;
 }
 
-  // Permission'ları validate et
-  static validatePermissions(permissions: any): boolean {
-    const requiredModules = ['users', 'meetings', 'roles', 'reports', 'settings'];
-    
-    if (!permissions || typeof permissions !== 'object') {
-      return false;
-    }
-
-    return requiredModules.every(module => {
-      return permissions[module] && typeof permissions[module] === 'object';
-    });
-  }
+// Role hiyerarşisi kontrol
+export function isHigherRole(role1: Role, role2: Role): boolean {
+  const hierarchy = {
+    [Role.ADMIN]: 4,
+    [Role.MANAGER]: 3,
+    [Role.USER]: 2,
+    [Role.GUEST]: 1,
+  };
+  return hierarchy[role1] > hierarchy[role2];
 }
+
+// Admin kontrol
+export function isAdmin(role: Role): boolean {
+  return role === Role.ADMIN;
+}
+
+// Manager veya üstü kontrol
+export function isManagerOrAbove(role: Role): boolean {
+  return role === Role.ADMIN || role === Role.MANAGER;
+}
+
+// Database seed data
+export const SEED_ROLES = [
+  {
+    name: Role.ADMIN,
+    displayName: 'Admin',
+    description: 'Sistem yöneticisi',
+    permissions: JSON.stringify(ROLE_PERMISSIONS[Role.ADMIN]),
+    isActive: true,
+  },
+  {
+    name: Role.MANAGER,
+    displayName: 'Manager',
+    description: 'Departman yöneticisi',
+    permissions: JSON.stringify(ROLE_PERMISSIONS[Role.MANAGER]),
+    isActive: true,
+  },
+  {
+    name: Role.USER,
+    displayName: 'User',
+    description: 'Standart kullanıcı',
+    permissions: JSON.stringify(ROLE_PERMISSIONS[Role.USER]),
+    isActive: true,
+  },
+  {
+    name: Role.GUEST,
+    displayName: 'Guest',
+    description: 'Misafir kullanıcı',
+    permissions: JSON.stringify(ROLE_PERMISSIONS[Role.GUEST]),
+    isActive: true,
+  },
+];
+
+// Kullanım örnekleri:
+// hasPermission(Role.ADMIN, 'users', 'delete') // true
+// isAdmin(userRole) // boolean
+// isManagerOrAbove(userRole) // boolean

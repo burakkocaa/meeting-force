@@ -38,14 +38,13 @@ model Role {
   name        String   @unique
   displayName String
   description String?
-  permissions Json     // JSON formatında permissions
+  permissions String   // JSON
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  // İlişkiler
-  users       User[]
-
+  
+  users User[]
+  
   @@map("roles")
 }
 
